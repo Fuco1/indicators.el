@@ -177,49 +177,38 @@ which P is is returned."
 
 (defun* ind-create-indicator-at-line (line
                                       &key
-                                      (marker nil)
+                                      (dynamic nil)
                                       (managed nil)
                                       (face font-lock-warning-face)
                                       (priority 10))
   "Add an indicator on LINE.
 
-If optional keyword argument MARKER is t create a dynamic
-indicator on this line.  That means the indicator position
-updates as the text is inserted/removed.
-
 See `ind-create-indicator' for values of optional arguments."
-  (let* ((pal (ind--pos-at-line line))
-         (pos (if marker
-                  (let ((m (point-marker)))
-                    (set-marker m pal))
-                pal)))
+  (let ((pos (ind--pos-at-line line)))
     (ind-create-indicator pos
+                          :dynamic dynamic
                           :managed managed
                           :face face
                           :priority priority)))
 
-(defun* ind-create-indicator-at-marker (point
-                                     &key
-                                     (managed nil)
-                                     (face font-lock-warning-face)
-                                     (priority 10))
-  "Add a dynamic indicator on position POINT.
-That means the indicator position updates as the text is inserted/removed.
-
-See `ind-create-indicator' for values of optional arguments."
-  (let ((m (point-marker)))
-    (set-marker m point)
-    (ind-create-indicator m
-                       :managed managed
-                       :face face
-                       :priority priority)))
-
 (defun* ind-create-indicator (pos
                               &key
+                              (dynamic nil)
                               (managed nil)
                               (face font-lock-warning-face)
                               (priority 10))
   "Add an indicator to position POS.
+
+If keyword argument DYNAMIC is t create a dynamic indicator on this
+line.  That means the indicator position updates as the text is
+inserted/removed.
+
+If keyword argument MANAGED is t the indicator is automatically
+managed by `indicators-mode'.  This means it will be
+automatically updated on window scrolling, window configuration
+changes and after buffer modifications.  If you create unmanaged
+indicator, you can update it manually by calling `ind-update'
+with a list of indicators to be updated.
 
 Keyword argument FACE is a face to use when displaying the bitmap
 for this indicator.  Default value is `font-lock-warning-face'.
@@ -230,7 +219,11 @@ more indicators are on the same physical line.  Default value is
   (when (and (not indicators-mode)
              managed)
     (indicators-mode t))
-  (let ((indicator (cons pos (list :face face :priority priority))))
+  (let* ((pos (if dynamic
+                  (let ((m (point-marker)))
+                    (set-marker m pos))
+                pos))
+         (indicator (cons pos (list :face face :priority priority))))
     (when managed
       (push indicator ind-managed-indicators)
       (ind-update))
