@@ -72,6 +72,29 @@ their absolute buffer position.")
   "Return the line at position POS."
   (count-lines (point-min) pos))
 
+(defun ind--line-start-at-pos (pos)
+  (save-excursion
+    (goto-char pos)
+    (beginning-of-line)
+    (point)))
+
+(defun ind--get-indicator-pos (pos-or-fun)
+  "Return the beginning position for line on which POS-OR-FUN is.
+POS-OR-FUN can be an integer, marker or a function.
+
+If POS-OR-FUN is a nullary function this function is used to get
+a buffer position P, then position of the beginning of line on
+which P is is returned."
+  (cond
+   ((integer-or-marker-p pos-or-fun)
+    (ind--line-start-at-pos pos-or-fun))
+   ;; absolute line position
+   ((and (listp pos-or-fun)
+         (integer-or-marker-p (car pos-or-fun)))
+    (ind--pos-at-line (car pos-or-fun)))
+   (t
+    (ind--line-start-at-pos (funcall pos-or-fun)))))
+
 (defmacro ind--number-of-lines ()
   "Return number of lines in buffer."
   (1- (line-number-at-pos (point-max))))
@@ -187,21 +210,6 @@ For example arugment (10 5 1) will return a bitmap [255 0 0 0 255
         (setq it (- it ind-indicator-height))))
     (vconcat lst)))
 
-(defun ind--get-indicator-pos (pos-or-fun)
-  "Return the beginning position for line on which POS-OR-FUN is.
-POS-OR-FUN can be an integer, marker or a function.
-
-If POS-OR-FUN is a nullary function this function is used to get
-a buffer position P, then position of the beginning of line on
-which P is is returned."
-  (let ((pos (if (integer-or-marker-p pos-or-fun)
-                 pos-or-fun
-               (funcall pos-or-fun))))
-    (save-excursion
-      (goto-char pos)
-      (beginning-of-line)
-      (point))))
-
 (defun* ind-create-indicator-at-line (line
                                       &key
                                       (dynamic t)
@@ -213,7 +221,7 @@ which P is is returned."
   "Add an indicator on LINE.
 
 See `ind-create-indicator' for values of optional arguments."
-  (let ((pos (ind--pos-at-line line)))
+  (let ((pos (if dynamic (ind--pos-at-line line) (list line))))
     (ind-create-indicator pos
                           :dynamic dynamic
                           :managed managed
@@ -283,7 +291,7 @@ more indicators are on the same physical line."
         (overlay-put ov 'ind-indicator t)
         (when managed
           (push indicator ind-managed-absolute-indicators)
-          (ind-update))
+          (ind-update-absolute))
         indicator))))
 
 (defun ind-clear-indicators ()
