@@ -17,11 +17,37 @@ This package is heavily inspired by [RFringe](http://www.emacswiki.org/emacs/RFr
 * You can specify the face for the indicator.
 * You can also create non-relative indicators that simply sit at given position.
 
+# Indicator types
+
+There are two fundamental types of indicators: relative and absolute. Relative indicators display line-position relative to buffer size scaled to the height of the window (similar to how classical scrollbars show you relative position in the window). Absolute indicators are attached to a specific position or line and are displayed only if that line is visible.
+
 # How to update indicators
 
-To turn on automatic updates of managed indicators simply enable `indicators-mode` in the buffer. This mode is automatically enabled when you add your first managed indicator in this buffer.
+This package is mostly ment to provide a simple interface for your own packages to use indicators. It is therefore expected you will create and manage indicator lists in your own code.
 
-To manually update lists of your own indicators or indicators managed by your package call `(ind-update my-list-of-indicators)`. The items on this list should be indicators as returned by some of the `ind-create-indicator[-*]` function (see next section).
+However, this package provides two lists, one for relative and one for absolute indicators, that are managed automatically. To turn on automatic updates for indicators managed by this package simply enable `indicators-mode` in the buffer. This mode is automatically enabled when you add your first managed indicator in current buffer. To create managed indicators use `:managed t` keyword (see next section).
+
+The managed indicators are updated on events: `window-scroll-functions`, `window-configuration-change-hook`, `after-change-functions`.
+
+To manually update lists of your own *relative* indicators call `(ind-update my-list-of-indicators)`. The items on this list should be relative indicators as returned by some of the `ind-create-indicator[-*]` function (see next section).
+
+To manually update lists of your own *absolute* indicators call `(ind-update-absolute my-list-of-indicators)`. The items on this list should be absolute indicators as returned by some of the `ind-create-indicator[-*]` funciton (see next section).
+
+You can register your lists with `indicators-mode` so they will become automatically managed too. This is the simplest way to manage the indicators and you should use it whenever possible.
+
+To let `indicators-mode` manage your relative indicators, simply use:
+
+```scheme
+(add-to-list 'ind-managed-list-relative 'my-list-variable)
+```
+
+To let `indicators-mode` manage your absolute indicators, simply use:
+
+```scheme
+(add-to-list 'ind-managed-list-absolute 'my-list-variable)
+```
+
+The list variable you add should be a quoted symbol. Its value will be automatically fetched by `indicators-mode`.
 
 # How to create indicators
 
@@ -61,9 +87,20 @@ To style your indicators use keyword argument `:face name-of-face`. If multiple 
 (ind-create-indicator-at-line 12 :face font-lock-constant-face :priority 100)
 ```
 
-To create a non-relative indicator use keyword argument `:relative nil`. For these, you can also specify a bitmap to use using `:bitmap 'name-of-bitmap`. See variable `fringe-bitmaps` for a list of built-in bitmaps.
+To create a non-relative indicator use keyword argument `:relative nil`. For these, you can also specify a bitmap to use using `:bitmap 'name-of-bitmap`. See variable `fringe-bitmaps` for a list of built-in bitmaps. You can also use package [fringe-helper.el](http://nschum.de/src/emacs/fringe-helper/) to draw new bitmaps.
 
 ```scheme
 ;; create an arrow indicator at line 20
 (ind-create-indicator-at-line 20 :relative nil :bitmap 'left-arrow)
+```
+
+You can also specify the fringe where the indicator should be placed using the keyword argument `:fringe` with values `'left-fringe` or `'right-fringe`
+
+```scheme
+(ind-create-indicator-at-line 215
+                              :managed t
+                              :fringe 'left-fringe
+                              :relative nil
+                              :bitmap 'question-mark
+                              :priority 200)
 ```
