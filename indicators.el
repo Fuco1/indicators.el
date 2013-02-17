@@ -215,10 +215,10 @@ See `ind-create-indicator' for values of optional arguments."
                        :priority priority)))
 
 (defun* ind-create-indicator (pos
-                           &key
-                           (managed nil)
-                           (face font-lock-warning-face)
-                           (priority 10))
+                              &key
+                              (managed nil)
+                              (face font-lock-warning-face)
+                              (priority 10))
   "Add an indicator to position POS.
 
 Keyword argument FACE is a face to use when displaying the bitmap
@@ -227,7 +227,8 @@ for this indicator.  Default value is `font-lock-warning-face'.
 Keyword argument PRIORITY determines the face of the bitmap if
 more indicators are on the same physical line.  Default value is
 10."
-  (unless indicators-mode
+  (when (and (not indicators-mode)
+             managed)
     (indicators-mode t))
   (let ((indicator (cons pos (list :face face :priority priority))))
     (when managed
