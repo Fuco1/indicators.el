@@ -145,64 +145,83 @@ If optional argument MLIST is non-nil updated indicators on that list."
                   (move-overlay ov pos pos)))
               ind-list)))))
 
+(defun ind--update-split-by-fringe (mlist)
+  "Split the indicators on MLIST by fringe (left or right)."
+  (let (left right)
+    (mapc (lambda (pair)
+            (if (eq (plist-get (cdr pair) :fringe) 'right-fringe)
+                (push pair right)
+              (push pair left)))
+          mlist)
+    (cons left right)))
+
+(defun ind--update (managed-list fringe)
+  "Update."
+  (let* ((max-line (ind--number-of-lines))
+         (height (min max-line (window-body-height)))
+         (px-height (* height (frame-char-height)))
+         ind-list
+         buckets buckets-face)
+    (setq ind-list (ind--compute-indicator-positions managed-list))
+
+    ;; next we need to compute their relative "pixel" positions
+    (setq ind-list
+          (mapcar (lambda (pair)
+                    (cons (floor (* (/ (float (ind--line-at-pos (car pair))) (float max-line))
+                                    (float px-height)))
+                          (cdr pair)))
+                  ind-list))
+    ;; parition the indicators into buckets for the same line
+    (mapc (lambda (pair)
+            (let* ((line (/ (car pair) (frame-char-height)))
+                   (ov-line (1+ (% (car pair) (frame-char-height)))))
+              (if (plist-member buckets line)
+                  (let ((bucket (plist-get buckets line))
+                        (bucket-face (plist-get buckets-face line)))
+                    (setq buckets
+                          (plist-put buckets line
+                                     (push ov-line bucket)))
+                    (when (> (plist-get (cdr pair) :priority)
+                             (plist-get bucket-face :priority))
+                      (setq buckets-face (plist-put buckets-face line (cdr pair)))))
+                (setq buckets (plist-put buckets line (list ov-line)))
+                (setq buckets-face (plist-put buckets-face line (cdr pair))))))
+          ind-list)
+    ;; and now create the overlays
+    (let ((top (window-start)))
+      (while buckets
+        (let* ((line (car buckets))
+               (line-ov (cadr buckets))
+               (fringe-str (symbol-name fringe))
+               (line-bitmap (make-symbol (concat fringe-str "-ovbitmap-" (int-to-string line))))
+               (fringe-display-prop (list fringe
+                                          line-bitmap
+                                          (plist-get (cadr buckets-face) :face)))
+               (fringe-text (propertize "!" 'display fringe-display-prop))
+               (ov (make-overlay 1 1)))
+          (overlay-put ov 'before-string fringe-text)
+          (overlay-put ov 'priority (plist-get (cadr buckets-face) :priority))
+          (overlay-put ov 'ind-indicator t)
+          (define-fringe-bitmap line-bitmap (ind--create-bitmap line-ov))
+          (save-excursion
+            (goto-char top)
+            (forward-line line)
+            (move-overlay ov (point) (point))))
+        (setq buckets (cddr buckets))
+        (setq buckets-face (cddr buckets-face))))))
+
 (defun ind-update (&optional mlist)
   "Update managed relative indicators.
 If optional argument MLIST is non-nil update indicators on that list."
   (interactive)
   (let ((managed-list (or mlist ind-managed-relative-indicators)))
     (when managed-list
-      (let* ((max-line (ind--number-of-lines))
-             (height (min max-line (window-body-height)))
-             (px-height (* height (frame-char-height)))
-             ind-list
-             buckets buckets-face)
-        (setq ind-list (ind--compute-indicator-positions managed-list))
-
-        ;; next we need to compute their relative "pixel" positions
-        (setq ind-list
-              (mapcar (lambda (pair)
-                        (cons (floor (* (/ (float (ind--line-at-pos (car pair))) (float max-line))
-                                        (float px-height)))
-                              (cdr pair)))
-                      ind-list))
-        ;; parition the indicators into buckets for the same line
-        (mapc (lambda (pair)
-                (let* ((line (/ (car pair) (frame-char-height)))
-                       (ov-line (1+ (% (car pair) (frame-char-height)))))
-                  (if (plist-member buckets line)
-                      (let ((bucket (plist-get buckets line))
-                            (bucket-face (plist-get buckets-face line)))
-                        (setq buckets
-                              (plist-put buckets line
-                                         (push ov-line bucket)))
-                        (when (> (plist-get (cdr pair) :priority)
-                                 (plist-get bucket-face :priority))
-                          (setq buckets-face (plist-put buckets-face line (cdr pair)))))
-                    (setq buckets (plist-put buckets line (list ov-line)))
-                    (setq buckets-face (plist-put buckets-face line (cdr pair))))))
-              ind-list)
-        ;; and now create the overlays
+      (let* ((split (ind--update-split-by-fringe managed-list))
+             (left (car split))
+             (right (cdr split)))
         (remove-overlays (point-min) (point-max) 'ind-indicator t)
-        (let ((top (window-start)))
-          (while buckets
-            (let* ((line (car buckets))
-                   (line-ov (cadr buckets))
-                   (line-bitmap (make-symbol (concat "ovbitmap" (int-to-string line))))
-                   (fringe-display-prop (list 'right-fringe
-                                              line-bitmap
-                                              (plist-get (cadr buckets-face) :face)))
-                   (fringe-text (propertize "!" 'display fringe-display-prop))
-                   (ov (make-overlay 1 1)))
-              (overlay-put ov 'before-string fringe-text)
-              (overlay-put ov 'priority (plist-get (cadr buckets-face) :priority))
-              (overlay-put ov 'ind-indicator t)
-              (define-fringe-bitmap line-bitmap (ind--create-bitmap line-ov))
-              (save-excursion
-                (goto-char top)
-                (forward-line line)
-                (move-overlay ov (point) (point))))
-            (setq buckets (cddr buckets))
-            (setq buckets-face (cddr buckets-face))))))))
+        (ind--update left 'left-fringe)
+        (ind--update right 'right-fringe)))))
 
 (defun ind--create-bitmap (lines)
   "Create the bitmap according to LINES.
@@ -230,6 +249,7 @@ For example arugment (10 5 1) will return a bitmap [255 0 0 0 255
                                       (managed nil)
                                       (relative t)
                                       (bitmap 'ind-dash)
+                                      (fringe 'right-fringe)
                                       (face font-lock-warning-face)
                                       (priority 10))
   "Add an indicator on LINE.
@@ -241,6 +261,7 @@ See `ind-create-indicator' for values of optional arguments."
                           :managed managed
                           :relative relative
                           :bitmap bitmap
+                          :fringe fringe
                           :face face
                           :priority priority)))
 
@@ -250,6 +271,7 @@ See `ind-create-indicator' for values of optional arguments."
                               (managed nil)
                               (relative t)
                               (bitmap 'ind-dash)
+                              (fringe 'right-fringe)
                               (face font-lock-warning-face)
                               (priority 10))
   "Add an indicator to position POS.
@@ -289,12 +311,12 @@ more indicators are on the same physical line."
                    (set-marker m pos))
                pos)))
     (if relative
-        (let ((indicator (cons pos (list :face face :priority priority))))
+        (let ((indicator (cons pos (list :face face :priority priority :fringe fringe))))
           (when managed
             (push indicator ind-managed-relative-indicators)
             (ind-update))
           indicator)
-      (let* ((fringe-display-prop (list 'right-fringe
+      (let* ((fringe-display-prop (list fringe
                                         bitmap
                                         face))
              (fringe-text (propertize "!" 'display fringe-display-prop))
@@ -302,7 +324,7 @@ more indicators are on the same physical line."
              (indicator (cons pos ov)))
         (overlay-put ov 'before-string fringe-text)
         (overlay-put ov 'priority priority)
-        (overlay-put ov 'ind-indicator t)
+        (overlay-put ov 'ind-indicator-absolute t)
         (when managed
           (push indicator ind-managed-absolute-indicators)
           (ind-update-absolute))
@@ -311,9 +333,20 @@ more indicators are on the same physical line."
 (defun ind-clear-indicators ()
   "Remove all indicators managed by `indicators-mode'."
   (interactive)
+  (ind-clear-indicators-relative)
+  (ind-clear-indicators-absolute))
+
+(defun ind-clear-indicators-relative ()
+  "Remove all relative indicators managed by `indicators-mode'."
+  (interactive)
   (remove-overlays (point-min) (point-max) 'ind-indicator t)
-  (setq ind-managed-relative-indicators nil)
-  (setq ind-managed-absolute-indicators nil))
+  (setq ind-managed-relative-indicators nil))
+
+(defun ind-clear-indicators-absolute ()
+  "Remove all absolute indicators managed by `indicators-mode'."
+  (interactive)
+  (setq ind-managed-absolute-indicators nil)
+  (remove-overlays (point-min) (point-max) 'ind-indicator-absolute t))
 
 (define-minor-mode indicators-mode
   "Toggle indicators mode."
