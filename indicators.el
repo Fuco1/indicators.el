@@ -145,6 +145,10 @@ If optional argument MLIST is non-nil updated indicators on that list."
                   (move-overlay ov pos pos)))
               ind-list)))))
 
+(defvar ind--temp-bitmaps nil
+  "List of temporary bitmaps.
+These are automatically destroyed on each call of `ind-update'.")
+
 (defun ind--update-split-by-fringe (mlist)
   "Split the indicators on MLIST by fringe (left or right)."
   (let (left right)
@@ -199,6 +203,7 @@ If optional argument MLIST is non-nil updated indicators on that list."
                                           (plist-get (cadr buckets-face) :face)))
                (fringe-text (propertize "!" 'display fringe-display-prop))
                (ov (make-overlay 1 1)))
+          (push line-bitmap ind--temp-bitmaps)
           (overlay-put ov 'before-string fringe-text)
           (overlay-put ov 'priority (plist-get (cadr buckets-face) :priority))
           (overlay-put ov 'ind-indicator t)
@@ -219,6 +224,7 @@ If optional argument MLIST is non-nil update indicators on that list."
       (let* ((split (ind--update-split-by-fringe managed-list))
              (left (car split))
              (right (cdr split)))
+        (mapc 'destroy-fringe-bitmap ind--temp-bitmaps)
         (remove-overlays (point-min) (point-max) 'ind-indicator t)
         (ind--update left 'left-fringe)
         (ind--update right 'right-fringe)))))
