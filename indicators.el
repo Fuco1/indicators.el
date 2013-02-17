@@ -1,11 +1,11 @@
-;;; indicators.el --- display the relative location of line in the fringe.
+;;; indicators.el --- Display the buffer relative location of line in the fringe.
 
 ;; Copyright (C) 2013 Matus Goljer
 
 ;; Author: Matus Goljer <matus.goljer@gmail.com>
 ;; Maintainer: Matus Goljer <matus.goljer@gmail.com>
 ;; Created: 16 Feb 2013
-;; Version: 0.0.3
+;; Version: 0.0.4
 ;; Keywords: fringe frames
 ;; URL: https://github.com/Fuco1/indicators.el
 
@@ -99,8 +99,22 @@ which P is is returned."
   "Return number of lines in buffer."
   (1- (line-number-at-pos (point-max))))
 
-(defun ind-update-event-handler (&optional a b c d e f g h)
+(defun ind-update-event-handler (&optional beg end _len d e f g h)
   "Function that is called by the hooks to redraw the fringe bitmaps."
+  (cond
+   ;; called from after-change-functions.  Only update if some
+   ;; newlines were added/removed.  This still does not catch all the
+   ;; redundant updates :( `after-change-functions' with all its
+   ;; property chanegs is completely useless!
+   ((integerp _len)
+    (when (or (= beg end)
+              (= end (point-max))
+              (string-match-p "\n" (buffer-substring-no-properties beg end)))
+      (ind--run-updates)))
+   (t (ind--run-updates))))
+
+(defun ind--run-updates ()
+  "Run all the update funcitons."
   (ignore-errors
     (ind-update)
     (ind-update-absolute)))
