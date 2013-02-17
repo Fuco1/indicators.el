@@ -5,7 +5,7 @@
 ;; Author: Matus Goljer <matus.goljer@gmail.com>
 ;; Maintainer: Matus Goljer <matus.goljer@gmail.com>
 ;; Created: 16 Feb 2013
-;; Version: 0.0.1
+;; Version: 0.0.3
 ;; Keywords: fringe frames
 ;; URL: https://github.com/Fuco1/indicators.el
 
