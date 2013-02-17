@@ -60,6 +60,26 @@ function to be updated.")
 their absolute buffer position.")
 (make-variable-buffer-local 'ind-managed-absolute-indicators)
 
+(defvar ind-managed-list-relative nil
+  "List of list variable names that should be automatically updated.
+This variable can be used by client code to register their own
+lists to be automatically updated by this package.  The lists
+should contain relative indicators.
+
+Usage:
+\(add-to-list 'ind-managed-list-relative 'my-list-variable)")
+(make-variable-buffer-local 'ind-managed-list-relative)
+
+(defvar ind-managed-list-absolute nil
+  "List of lists that should be automatically updated.
+This variable can be used by client code to register their own
+lists to be automatically updated by this package.  The lists
+should contain absolute indicators.
+
+Usage:
+\(add-to-list 'ind-managed-list-absolute 'my-list-variable)")
+(make-variable-buffer-local 'ind-managed-list-absolute)
+
 (define-fringe-bitmap 'ind-dash [255 0])
 
 (defun ind--pos-at-line (line)
@@ -117,7 +137,9 @@ which P is is returned."
   "Run all the update funcitons."
   (ignore-errors
     (ind-update)
-    (ind-update-absolute)))
+    (ind-update-absolute)
+    (mapc (lambda (list) (ind-update (symbol-value list))) ind-managed-list-relative)
+    (mapc 'ind-update-absolute ind-managed-list-absolute)))
 
 (defvar ind-indicator-height 1
   "Height of an indicator in pixels.
@@ -329,6 +351,7 @@ more indicators are on the same physical line."
              (ov (make-overlay 1 1))
              (indicator (cons pos ov)))
         (overlay-put ov 'before-string fringe-text)
+        (overlay-put ov 'before-string-backup fringe-text)
         (overlay-put ov 'priority priority)
         (overlay-put ov 'ind-indicator-absolute t)
         (when managed
@@ -354,6 +377,39 @@ more indicators are on the same physical line."
   (setq ind-managed-absolute-indicators nil)
   (remove-overlays (point-min) (point-max) 'ind-indicator-absolute t))
 
+(defun ind--hide-absolute-indicators (mlist)
+  "Hide the absolute indicators on MLIST."
+  (let ((ovs (mapcar 'cdr mlist)))
+    (mapc (lambda (ov)
+            (overlay-put ov 'before-string nil))
+          ovs)))
+
+(defun ind--show-absolute-indicators (mlist)
+  "Hide the absolute indicators on MLIST."
+  (let ((ovs (mapcar 'cdr mlist)))
+    (mapc (lambda (ov)
+            (let ((bfs (overlay-get ov 'before-string-backup)))
+              (overlay-put ov 'before-string bfs)))
+          ovs)))
+
+(defun ind-hide-indicators ()
+  "Hide all indicators managed by `indicators-mode'."
+  (interactive)
+  (ind--hide-absolute-indicators ind-managed-absolute-indicators)
+  (mapc (lambda (lst)
+          (ind--hide-absolute-indicators (symbol-value lst)))
+        ind-managed-list-absolute)
+  (remove-overlays (point-min) (point-max) 'ind-indicator t))
+
+(defun ind-show-indicators ()
+  "Show all indicators managed by `indicators-mode'"
+  (interactive)
+  (ind--show-absolute-indicators ind-managed-absolute-indicators)
+  (mapc (lambda (lst)
+          (ind--show-absolute-indicators (symbol-value lst)))
+        ind-managed-list-absolute)
+  (ind-update-event-handler))
+
 (define-minor-mode indicators-mode
   "Toggle indicators mode."
   :init-value nil
@@ -363,11 +419,12 @@ more indicators are on the same physical line."
       (progn
         (add-hook 'window-scroll-functions 'ind-update-event-handler nil t)
         (add-hook 'window-configuration-change-hook 'ind-update-event-handler nil t)
-        (add-hook 'after-change-functions 'ind-update-event-handler nil t))
+        (add-hook 'after-change-functions 'ind-update-event-handler nil t)
+        (ind-show-indicators))
     (remove-hook 'window-scroll-functions 'ind-update-event-handler t)
     (remove-hook 'window-configuration-change-hook 'ind-update-event-handler t)
     (remove-hook 'after-change-functions 'ind-update-event-handler t)
-    (ind-clear-indicators)))
+    (ind-hide-indicators)))
 
 (provide 'indicators)
 
