@@ -336,6 +336,7 @@ more indicators are on the same physical line."
   (let ((pos (if (and dynamic
                       (integer-or-marker-p pos))
                  (let ((m (point-marker)))
+                   (set-marker-insertion-type m t)
                    (set-marker m pos))
                pos)))
     (if relative
