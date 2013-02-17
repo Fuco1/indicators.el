@@ -176,25 +176,35 @@ which P is is returned."
       (point))))
 
 (defun* ind-create-indicator-at-line (line
-                                   &key
-                                   (managed nil)
-                                   (face font-lock-warning-face)
-                                   (priority 10))
+                                      &key
+                                      (marker nil)
+                                      (managed nil)
+                                      (face font-lock-warning-face)
+                                      (priority 10))
   "Add an indicator on LINE.
 
+If optional keyword argument MARKER is t create a dynamic
+indicator on this line.  That means the indicator position
+updates as the text is inserted/removed.
+
 See `ind-create-indicator' for values of optional arguments."
-  (ind-create-indicator (ind--pos-at-line line)
-                     :managed managed
-                     :face face
-                     :priority priority))
+  (let* ((pal (ind--pos-at-line line))
+         (pos (if marker
+                  (let ((m (point-marker)))
+                    (set-marker m pal))
+                pal)))
+    (ind-create-indicator pos
+                          :managed managed
+                          :face face
+                          :priority priority)))
 
 (defun* ind-create-indicator-at-marker (point
                                      &key
                                      (managed nil)
                                      (face font-lock-warning-face)
                                      (priority 10))
-  "Add a marker indicator on position POINT.
-This means the position updates as the text is inserted/removed.
+  "Add a dynamic indicator on position POINT.
+That means the indicator position updates as the text is inserted/removed.
 
 See `ind-create-indicator' for values of optional arguments."
   (let ((m (point-marker)))
