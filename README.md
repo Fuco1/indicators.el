@@ -15,6 +15,7 @@ This package is heavily inspired by [RFringe](http://www.emacswiki.org/emacs/RFr
     * Indicators on functions compute their position from a function. To add a simple indicator of buffer-relative position you can therefore call `(ind-create-indicator 'point :managed t)`. On each update, the value of `(point)` is used for this indicator's position.
 * Indicators can be static or dynamic. Static indicators always point to the same position. Dynamic indicators update their position if the buffer content is updated (using standard Emacs LISP markers). You can use this to add indicators on functions or section headers and they will automatically update their positions if you add more text/code in the buffer.
 * You can specify the face for the indicator.
+* You can also create non-relative indicators that simply sit at given position.
 
 # How to update indicators
 
@@ -28,16 +29,16 @@ To create your own indicator use:
 
 ```scheme
 ;; create static indicator at position 1337
-(ind-create-indicator 1337)
+(ind-create-indicator 1337 :dynamic nil)
 
 ;; create dynamic indicator with initial position 2238
 (ind-create-indicator 2238 :dynamic t)
 
 ;; create static indicator at line 15
-(ind-create-indicator-at-line 15)
+(ind-create-indicator-at-line 15 :dynamic nil)
 
-;; create dynamic indicator at line 30
-(ind-create-indicator-at-line 30 :dynamic t)
+;; create dynamic indicator at line 30. By default dynamic indicators are created.
+(ind-create-indicator-at-line 30)
 ```
 
 All indicators are automatically buffer-local.
@@ -58,4 +59,11 @@ To style your indicators use keyword argument `:face name-of-face`. If multiple 
 
 ```scheme
 (ind-create-indicator-at-line 12 :face font-lock-constant-face :priority 100)
+```
+
+To create a non-relative indicator use keyword argument `:relative nil`. For these, you can also specify a bitmap to use using `:bitmap 'name-of-bitmap`. See variable `fringe-bitmaps` for a list of built-in bitmaps.
+
+```scheme
+;; create an arrow indicator at line 20
+(ind-create-indicator-at-line 20 :relative nil :bitmap 'left-arrow)
 ```
