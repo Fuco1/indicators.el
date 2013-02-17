@@ -45,14 +45,22 @@
 
 (require 'fringe)
 
-(defvar ind-managed-indicators nil
-  "Managed indicators.  Position of these on the fringe is
-automatically updated when window properties change.
+(defvar ind-managed-relative-indicators nil
+  "Managed relative indicators.  Position of these on the fringe
+is automatically updated when window properties change.  These
+indicators display relative buffer position.
 
 These are managed automatically by `indicators-mode'.  However,
 you can manage your own lists and pass them to `ind-update'
 function to be updated.")
-(make-variable-buffer-local 'ind-managed-indicators)
+(make-variable-buffer-local 'ind-managed-relative-indicators)
+
+(defvar ind-managed-absolute-indicators nil
+  "Managed absolute indicators.  These indicators are shown on
+their absolute buffer position.")
+(make-variable-buffer-local 'ind-managed-absolute-indicators)
+
+(define-fringe-bitmap 'ind-dash [255 0])
 
 (defun ind--pos-at-line (line)
   "Return the starting point of LINE."
@@ -71,29 +79,48 @@ function to be updated.")
 (defun ind-update-event-handler (&optional a b c d e f g h)
   "Function that is called by the hooks to redraw the fringe bitmaps."
   (ignore-errors
-    (ind-update)))
+    (ind-update)
+    (ind-update-absolute)))
 
 (defvar ind-indicator-height 1
   "Height of an indicator in pixels.
 The value of 1 works best, but values up to `frame-char-height'
 are possible.")
 
-(defun ind-update (&optional mlist)
-  "Update managed indicators.
-If optional argument LIST is non-nil update indicators on that list."
+(defun ind--compute-indicator-positions (managed-list)
+  "Compute the current positions of indicators on MANAGED-LIST."
+  (sort (mapcar (lambda (pair) (cons (ind--get-indicator-pos (car pair))
+                                     (cdr pair))) managed-list)
+        (lambda (a b) (< (car a) (car b)))))
+
+(defun ind-update-absolute (&optional mlist)
+  "Update managed absolute indicators.
+If optional argument MLIST is non-nil updated indicators on that list."
   (interactive)
-  (let ((managed-list (or mlist (bound-and-true-p ind-managed-indicators))))
+  (let ((managed-list (or mlist ind-managed-absolute-indicators)))
+    (when managed-list
+      (let (ind-list)
+        (setq ind-list (ind--compute-indicator-positions managed-list))
+
+        (mapc (lambda (pair)
+                (let ((pos (car pair))
+                      (ov (cdr pair)))
+                  (move-overlay ov pos pos)))
+              ind-list)))))
+
+(defun ind-update (&optional mlist)
+  "Update managed relative indicators.
+If optional argument MLIST is non-nil update indicators on that list."
+  (interactive)
+  (let ((managed-list (or mlist ind-managed-relative-indicators)))
     (when managed-list
       (let* ((max-line (ind--number-of-lines))
              (height (min max-line (window-body-height)))
              (px-height (* height (frame-char-height)))
              ind-list
              buckets buckets-face)
-        ;; here we need to compute the values of functions (if there
-        ;; are some) on this managed-list and then sort it
-        (setq ind-list (sort (mapcar (lambda (pair) (cons (ind--get-indicator-pos (car pair))
-                                                          (cdr pair))) managed-list)
-                             (lambda (a b) (< (car a) (car b)))))
+        (setq ind-list (ind--compute-indicator-positions managed-list))
+
         ;; next we need to compute their relative "pixel" positions
         (setq ind-list
               (mapcar (lambda (pair)
@@ -177,8 +204,10 @@ which P is is returned."
 
 (defun* ind-create-indicator-at-line (line
                                       &key
-                                      (dynamic nil)
+                                      (dynamic t)
                                       (managed nil)
+                                      (relative t)
+                                      (bitmap 'ind-dash)
                                       (face font-lock-warning-face)
                                       (priority 10))
   "Add an indicator on LINE.
@@ -188,51 +217,81 @@ See `ind-create-indicator' for values of optional arguments."
     (ind-create-indicator pos
                           :dynamic dynamic
                           :managed managed
+                          :relative relative
+                          :bitmap bitmap
                           :face face
                           :priority priority)))
 
 (defun* ind-create-indicator (pos
                               &key
-                              (dynamic nil)
+                              (dynamic t)
                               (managed nil)
+                              (relative t)
+                              (bitmap 'ind-dash)
                               (face font-lock-warning-face)
                               (priority 10))
   "Add an indicator to position POS.
 
-If keyword argument DYNAMIC is t create a dynamic indicator on this
-line.  That means the indicator position updates as the text is
-inserted/removed.
+If keyword argument DYNAMIC is non-nil create a dynamic indicator
+on this line.  That means the indicator position updates as the
+text is inserted/removed.  With nil the indicator always points
+to the same buffer position.
 
-If keyword argument MANAGED is t the indicator is automatically
-managed by `indicators-mode'.  This means it will be
-automatically updated on window scrolling, window configuration
-changes and after buffer modifications.  If you create unmanaged
-indicator, you can update it manually by calling `ind-update'
-with a list of indicators to be updated.
+If keyword argument MANAGED is non-nil the indicator is
+automatically managed by `indicators-mode'.  This means it will
+be automatically updated on window scrolling, window
+configuration changes and after buffer modifications.  If you
+create unmanaged indicator, you can update it manually by calling
+`ind-update' with a list of indicators to be updated.
+
+If keyword argument RELATIVE is non-nil the indicator shows
+relative buffer position.  Otherwise the indicator is only
+displayed if it is inside the viewpoint.
+
+Keyword argument BITMAP specifies a bitmap to be used to display
+this indicator.  This setting can only be used with non-relative
+indicator.  See variable `fringe-bitmaps' for built-in bitmaps
+you can use.
 
 Keyword argument FACE is a face to use when displaying the bitmap
-for this indicator.  Default value is `font-lock-warning-face'.
+for this indicator.
 
 Keyword argument PRIORITY determines the face of the bitmap if
-more indicators are on the same physical line.  Default value is
-10."
+more indicators are on the same physical line."
   (when (and (not indicators-mode)
              managed)
     (indicators-mode t))
-  (let* ((pos (if dynamic
-                  (let ((m (point-marker)))
-                    (set-marker m pos))
-                pos))
-         (indicator (cons pos (list :face face :priority priority))))
-    (when managed
-      (push indicator ind-managed-indicators)
-      (ind-update))
-    indicator))
+  (let ((pos (if (and dynamic
+                      (integer-or-marker-p pos))
+                 (let ((m (point-marker)))
+                   (set-marker m pos))
+               pos)))
+    (if relative
+        (let ((indicator (cons pos (list :face face :priority priority))))
+          (when managed
+            (push indicator ind-managed-relative-indicators)
+            (ind-update))
+          indicator)
+      (let* ((fringe-display-prop (list 'right-fringe
+                                        bitmap
+                                        face))
+             (fringe-text (propertize "!" 'display fringe-display-prop))
+             (ov (make-overlay 1 1))
+             (indicator (cons pos ov)))
+        (overlay-put ov 'before-string fringe-text)
+        (overlay-put ov 'priority priority)
+        (overlay-put ov 'ind-indicator t)
+        (when managed
+          (push indicator ind-managed-absolute-indicators)
+          (ind-update))
+        indicator))))
 
 (defun ind-clear-indicators ()
   "Remove all indicators managed by `indicators-mode'."
+  (interactive)
   (remove-overlays (point-min) (point-max) 'ind-indicator t)
-  (setq ind-managed-indicators nil))
+  (setq ind-managed-relative-indicators nil)
+  (setq ind-managed-absolute-indicators nil))
 
 (define-minor-mode indicators-mode
   "Toggle indicators mode."
