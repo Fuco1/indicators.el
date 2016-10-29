@@ -139,6 +139,10 @@ which P is is returned."
 
 (defun ind--run-updates ()
   "Run all the update funcitons."
+  (mapc 'destroy-fringe-bitmap ind--temp-bitmaps)
+  (mapc 'makunbound ind--temp-bitmaps)
+  (setq ind--temp-bitmaps nil)
+  (remove-overlays (point-min) (point-max) 'ind-indicator t)
   (let ((relative (-concat ind-managed-relative-indicators (-mapcat 'symbol-value ind-managed-list-relative)))
         (absolute (-concat ind-managed-absolute-indicators (-mapcat 'symbol-value ind-managed-list-absolute))))
     (ignore-errors
@@ -247,8 +251,6 @@ If optional argument MLIST is non-nil update indicators on that list."
       (let* ((split (ind--update-split-by-fringe managed-list))
              (left (car split))
              (right (cdr split)))
-        (mapc 'destroy-fringe-bitmap ind--temp-bitmaps)
-        (remove-overlays (point-min) (point-max) 'ind-indicator t)
         (ind--update left 'left-fringe)
         (ind--update right 'right-fringe)))))
 
