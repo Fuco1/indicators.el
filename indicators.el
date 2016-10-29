@@ -119,7 +119,7 @@ which P is is returned."
    (t
     (ind--line-start-at-pos (funcall pos-or-fun)))))
 
-(defmacro ind--number-of-lines ()
+(defun ind--number-of-lines ()
   "Return number of lines in buffer."
   (1- (line-number-at-pos (point-max))))
 
