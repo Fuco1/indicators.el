@@ -139,11 +139,12 @@ which P is is returned."
 
 (defun ind--run-updates ()
   "Run all the update funcitons."
-  (ignore-errors
-    (ind-update)
-    (ind-update-absolute)
-    (mapc (lambda (list) (ind-update (symbol-value list))) ind-managed-list-relative)
-    (mapc 'ind-update-absolute ind-managed-list-absolute)))
+  (let ((relative (-concat ind-managed-relative-indicators (-mapcat 'symbol-value ind-managed-list-relative)))
+        (absolute (-concat ind-managed-absolute-indicators (-mapcat 'symbol-value ind-managed-list-absolute))))
+    (ignore-errors
+      (ind-update relative))
+    (ignore-errors
+      (ind-update-absolute absolute))))
 
 (defvar ind-indicator-height 1
   "Height of an indicator in pixels.
