@@ -80,6 +80,10 @@ Usage:
 \(add-to-list 'ind-managed-list-absolute 'my-list-variable)")
 (make-variable-buffer-local 'ind-managed-list-absolute)
 
+(defvar ind--temp-bitmaps nil
+  "List of temporary bitmaps.
+These are automatically destroyed on each call of `ind-update'.")
+
 (define-fringe-bitmap 'ind-dash [255 0])
 
 (defun ind--pos-at-line (line)
@@ -166,10 +170,6 @@ If optional argument MLIST is non-nil updated indicators on that list."
                       (ov (cdr pair)))
                   (move-overlay ov pos pos)))
               ind-list)))))
-
-(defvar ind--temp-bitmaps nil
-  "List of temporary bitmaps.
-These are automatically destroyed on each call of `ind-update'.")
 
 (defun ind--update-split-by-fringe (mlist)
   "Split the indicators on MLIST by fringe (left or right)."
