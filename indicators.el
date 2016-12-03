@@ -188,7 +188,7 @@ If optional argument MLIST is non-nil updated indicators on that list."
 
 (defun ind--update (managed-list fringe)
   "Update."
-  (let* ((max-line (ind--number-of-lines))
+  (let* ((max-line (max 1 (ind--number-of-lines)))
          (height (min max-line (window-body-height)))
          (px-height (* height (frame-char-height)))
          ind-list
