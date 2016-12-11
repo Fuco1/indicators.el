@@ -5,6 +5,7 @@
 ;; Author: Matus Goljer <matus.goljer@gmail.com>
 ;; Maintainer: Matus Goljer <matus.goljer@gmail.com>
 ;; Created: 16 Feb 2013
+;; Package-requires: ((dash "2.13.0") (cl-lib "0.5.0"))
 ;; Version: 0.0.4
 ;; Keywords: fringe frames
 ;; URL: https://github.com/Fuco1/indicators.el
@@ -44,6 +45,9 @@
 ;;; Code:
 
 (require 'fringe)
+(require 'cl-lib)
+
+(require 'dash)
 
 (defvar ind-managed-relative-indicators nil
   "Managed relative indicators.  Position of these on the fringe
