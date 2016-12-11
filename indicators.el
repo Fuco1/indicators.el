@@ -278,15 +278,15 @@ For example arugment (10 5 1) will return a bitmap [255 0 0 0 255
         (setq it (- it ind-indicator-height))))
     (vconcat lst)))
 
-(defun* ind-create-indicator-at-line (line
-                                      &key
-                                      (dynamic t)
-                                      (managed nil)
-                                      (relative t)
-                                      (bitmap 'ind-dash)
-                                      (fringe 'right-fringe)
-                                      (face font-lock-warning-face)
-                                      (priority 10))
+(cl-defun ind-create-indicator-at-line (line
+                                        &key
+                                        (dynamic t)
+                                        (managed nil)
+                                        (relative t)
+                                        (bitmap 'ind-dash)
+                                        (fringe 'right-fringe)
+                                        (face font-lock-warning-face)
+                                        (priority 10))
   "Add an indicator on LINE.
 
 See `ind-create-indicator' for values of optional arguments."
@@ -300,15 +300,15 @@ See `ind-create-indicator' for values of optional arguments."
                           :face face
                           :priority priority)))
 
-(defun* ind-create-indicator (pos
-                              &key
-                              (dynamic t)
-                              (managed nil)
-                              (relative t)
-                              (bitmap 'ind-dash)
-                              (fringe 'right-fringe)
-                              (face font-lock-warning-face)
-                              (priority 10))
+(cl-defun ind-create-indicator (pos
+                                &key
+                                (dynamic t)
+                                (managed nil)
+                                (relative t)
+                                (bitmap 'ind-dash)
+                                (fringe 'right-fringe)
+                                (face font-lock-warning-face)
+                                (priority 10))
   "Add an indicator to position POS.
 
 If keyword argument DYNAMIC is non-nil create a dynamic indicator
