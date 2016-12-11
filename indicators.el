@@ -1,6 +1,6 @@
 ;;; indicators.el --- Display the buffer relative location of line in the fringe.
 
-;; Copyright (C) 2013 Matus Goljer
+;; Copyright (C) 2013,2016 Matus Goljer
 
 ;; Author: Matus Goljer <matus.goljer@gmail.com>
 ;; Maintainer: Matus Goljer <matus.goljer@gmail.com>
