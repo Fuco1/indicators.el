@@ -367,6 +367,31 @@ more indicators are on the same physical line."
           (ind-update-absolute))
         indicator))))
 
+(cl-defun ind-remove-indicator-at-line (line)
+  "Remove the indicator on LINE."
+  (save-excursion
+    (goto-char (point-min))
+    (forward-line (1- line))
+    (ind-remove-indicator (point))))
+
+(cl-defun ind-remove-indicator (pos)
+  "Remove the indicator to position POS."
+  (save-excursion
+    (goto-char pos)
+    (delete-dups ind-managed-absolute-indicators)
+    (let ((start-pt (line-beginning-position))
+          (end-pt (line-end-position))
+          (remove-inds '()))
+      (dolist (ind ind-managed-absolute-indicators)
+        (let* ((pos (car ind))
+               (mkr-pos (marker-position pos)))
+          (when (and (>= mkr-pos start-pt)
+                     (<= mkr-pos end-pt))
+            (push ind remove-inds))))
+      (dolist (ind remove-inds)
+        (setq ind-managed-absolute-indicators (remove ind ind-managed-absolute-indicators)))
+      (remove-overlays start-pt end-pt 'ind-indicator-absolute t))))
+
 (defun ind-clear-indicators ()
   "Remove all indicators managed by `indicators-mode'."
   (interactive)
