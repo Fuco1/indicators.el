@@ -88,7 +88,8 @@ Usage:
   "List of temporary bitmaps.
 These are automatically destroyed on each call of `ind-update'.")
 
-(define-fringe-bitmap 'ind-dash [255 0])
+(when (fboundp 'define-fringe-bitmap)
+  (define-fringe-bitmap 'ind-dash [255 0]))
 
 (defun ind--pos-at-line (line)
   "Return the starting point of LINE."
